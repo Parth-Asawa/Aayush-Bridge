@@ -91,6 +91,7 @@ export const AddDiseaseModal: React.FC<AddDiseaseModalProps> = ({
       // Send to external API
       try {
         await terminologyAPI.saveDiagnosis({
+          patient_abha_id: patient.abha_id,
           patient_id: patient.id,
           doctor_id: user.id,
           hospital_id: user.hospital_id || '',

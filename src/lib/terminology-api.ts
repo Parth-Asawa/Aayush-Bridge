@@ -8,14 +8,15 @@ export interface DiseaseSearchResult {
   namaste_name: string;
   icd_code: string;
   icd_name: string;
-  disease_name_hindi: string;
-  category: string;
+  disease_name_hindi?: string;
+  category?: string;
   description?: string;
   synonyms?: string[];
   treatment_approach?: string[];
 }
 
 export interface DiagnosisData {
+  patient_abha_id: string;
   patient_id: string;
   doctor_id: string;
   hospital_id?: string;
@@ -23,7 +24,7 @@ export interface DiagnosisData {
   namaste_name: string;
   icd_code: string;
   icd_name: string;
-  disease_name_hindi: string;
+  disease_name_hindi?: string;
   severity: 'mild' | 'moderate' | 'severe' | 'critical';
   treatment_approach: string;
   notes?: string;
@@ -48,7 +49,20 @@ class TerminologyAPI {
       );
       
       if (response.ok) {
-        return await response.json();
+        const externalResults = await response.json();
+        // Map external API response to our DiseaseSearchResult interface
+        return externalResults.map((item: any) => ({
+          id: item.namaste || `external-${Date.now()}-${Math.random()}`,
+          namaste_code: item.namaste,
+          namaste_name: item.namaste_name,
+          icd_code: item.icd,
+          icd_name: item.icd_name,
+          disease_name_hindi: undefined, // Not provided by external API
+          category: undefined, // Not provided by external API
+          description: undefined,
+          synonyms: undefined,
+          treatment_approach: ['allopathic', 'ayurvedic'] // Default options
+        }));
       }
     } catch (error) {
       console.warn('External terminology API not available, using fallback data:', error);
@@ -61,15 +75,22 @@ class TerminologyAPI {
   async saveDiagnosis(data: DiagnosisData): Promise<{ success: boolean; message: string }> {
     try {
       // First, try the external API
+      const externalPayload = {
+        abha_id: data.patient_abha_id,
+        namaste: data.namaste_code,
+        icd: data.icd_code
+      };
+      
       const response = await fetch(`${API_HOST}/api/diagnosis`, {
         method: 'POST',
         headers: this.baseHeaders,
-        body: JSON.stringify(data),
+        body: JSON.stringify(externalPayload),
         signal: AbortSignal.timeout(5000) // 5 second timeout
       });
 
       if (response.ok) {
-        return await response.json();
+        const result = await response.json();
+        return { success: true, message: 'Diagnosis saved successfully to external API' };
       }
     } catch (error) {
       console.warn('External terminology API not available for saving, using fallback:', error);
